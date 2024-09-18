@@ -1,0 +1,6 @@
+[submodule "scribe"]
+	path = scribe
+	url = git@github.com:ludovicus3/scribe.git
+[submodule "folio"]
+	path = folio
+	url = git@github.com:ludovicus3/folio.git
