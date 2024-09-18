@@ -8,7 +8,23 @@ projects:
         origin: https://github.com/ludovicus3/scroll.git
     name: scroll
 components:
-  - container:
+  - name: redis
+    container:
+      endpoints:
+        - exposure: none
+          name: redis
+          targetPort: 6379
+      image: redis:{{redisTag}}
+      command:
+        - redis-server
+      args:
+        - '--appendonly'
+        - 'yes'
+      volumeMounts:
+        - name: cache
+          path: /data
+  - name: postgres
+    container:
       endpoints:
         - exposure: none
           name: postgresql
@@ -22,42 +38,57 @@ components:
           value: '{{postgresDb}}'
         - name: PGDATA
           value: /var/lib/postgresql/data/pgdata
-      image: postgres:latest
+      image: postgres:{{postgresTag}}
       volumeMounts:
         - name: data
           path: /var/lib/postgresql/data
-  - container:
+  - name: tools
+    container:
       endpoints:
         - exposure: public
           name: rails
           protocol: http
           targetPort: 5000
-          urlRewriteSupported: true
+          path: /api
         - exposure: public
           name: webpack
           protocol: http
           targetPort: 3000
-          urlRewriteSupported: true
+          path: /
       env:
         - name: RAILS_ENV
           value: development
+        - name: REDIS_URL
+          value: redis://localhost:6379/0
+        - name: POSTGRES_USER
+          value: '{{postgresUser}}'
+        - name: POSTGRES_PASSWORD
+          value: '{{postgresPassword}}'
+        - name: POSTGRES_DB
+          value: '{{postgresDb}}'
+        - name: SKIP_TEST_DATABASE
+          value: 'true'
       image: quay.io/ludovicus/rails-developer-image:bookwork-latest
       memoryLimit: 2G
       mountSources: true
-      sourceMapping: /projects
-    name: tools
+  - name: data
+    volume:
+      size: 2Gi
+  - name: cache
+    volume:
+      size: 1Gi
 commands:
   - exec:
       commandLine: bundle install
       component: tools
       label: Ruby Dependencies
-      workingDir: ${PROJECTS_SOURCE}/scribe
+      workingDir: ${PROJECT_SOURCE}/scribe
     id: ruby-dependencies
   - exec:
       commandLine: npm install
       component: tools
       label: Nodejs Dependencies
-      workingDir: ${PROJECTS_SOURCE}/folio
+      workingDir: ${PROJECT_SOURCE}/folio
     id: nodejs-dependencies
   - exec:
       commandLine: bundle exec bin/rails server
@@ -107,4 +138,6 @@ commands:
 variables:
   postgresDb: scroll
   postgresUser: scribe
-  postgresPassword: REDACTED
+  postgresPassword: as12349o8gjw8
+  postgresTag: '16'
+  redisTag: latest
